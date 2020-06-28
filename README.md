@@ -1,2 +1,2 @@
 # splish-kaboom
-Attempting the Splish-Kaboom minigame from The Legend of Zelda: Wind Waker
+Attempting the Sploosh-Kaboom minigame from The Legend of Zelda: Wind Waker (I renamed it slightly)
