@@ -8,16 +8,25 @@ splish-kaboom.jl - Recreation of the "Sploosh Kaboom!" minigame from The Legend 
 ROW_LIMIT = 10  # 0-9
 COL_LIMIT = 26  # A-Z
 
+### GameBoard
+
 mutable struct GameBoard
     shots::Array{Bool}
     squids::Array{Bool}
 end
 
-GameBoard(g::GameOptions) = Gameboard(zeros(g.num_rows, g.num_cols), zeros(g.num_rows, g.num_cols)
+GameBoard(g::GameOptions) = GameBoard(zeros(g.num_rows, g.num_cols), zeros(g.num_rows, g.num_cols))
+
+shots_board(g::GameBoard) = g.shots
+squids_board(g::GameBoard) = g.squids
+
+### Squid
 
 struct Squid
     length:UInt
 end
+
+length(s::Squid) = s.length
 
 ### Game Options
 
@@ -130,6 +139,11 @@ function change_row(g::GameOptions, biggest_squid::Int)
     end
 end
 
+function place_squid_on_gameboard!(gameboard::GameBoard, squid::Squid)
+    """Randomly place a squid on the game board."""
+
+end
+
 ### Main
 
 function main()
@@ -137,8 +151,8 @@ function main()
     println("First, would like to modify any of the game options?  The defaults are 8 rows, 8 columns, and 25 shots maximum: (y/n) ")
     change_opts = readline()
     game_opts = GameOptions()
-    squids = [Squid(3), Squid(4), Squid(5)]
-    if change_opts in ["y", "Y", "yes"]
+    squids = [Squid(3), Squid(4), Squid(5)] #TODO: Customize number of squids and lengths
+    if lowercase(change_opts) in ["y", "yes"]
         change_options!(game_opts, squids)
     end
     gameboard = GameBoard(game_opts)
