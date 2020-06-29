@@ -37,6 +37,8 @@ mutable struct GameOptions
     num_cols::UInt = 8
     # Maybe later - num_squids::UInt = 3
     max_allowed_shots::UInt = 24
+
+    GameOptions() = new(num_rows, num_cols, max_allowed_shots)
 end
 
 num_rows(g::GameOptions) = g.num_rows
