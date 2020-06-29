@@ -26,26 +26,9 @@ num_cols(g::GameBoard) = size(g)[2]
 
 struct Squid
     length::UInt        # Number of coordinates the squid takes on the board
-    offset_left::UInt   # How far to the left the squid stretches beyond its center coordinate
-    offset_right::UInt  # Same to the right
-    # NOTE: is it worth adding squid's place on the board as well?
-
-    function Squid(len::UInt)
-        offset = floor(len / 2)
-        if isodd(len)
-            offset_left = offset
-            offset_right = offset
-        else
-            offset_left = offset - 1
-            offset_right = offset
-        end
-        return new(len, offset_left, offset_right)
-    end
 end
 
 length(s::Squid) = s.length
-offset_left(s::Squid) = s.offset_left
-offset_right(s::Squid) = s.offset_right
 
 ### Game Options
 
@@ -100,11 +83,11 @@ function change_cols(g::GameOptions, biggest_squid::Int)
     end
 end
 
-function change_max_shots(game_opts::GameOptions squids::Vector{Squid})
+function change_max_shots(game_opts::GameOptions, squids::Vector{Squid})
     min_possible_shots = sum(s->s.length, squids)
     max_possible_shots = g.num_rows * g.num_cols - min_possible_shots
     default_max_shots = min(25, max_possible_shots)
-    while True
+    while true
         println("What is the maximum allowed number of shots you want to have? Fewer makes the game harder (range is $min_possible_shots - $max_possible_shots): [${default_max_shots}]")
         num_shots = readline()
         try
@@ -122,17 +105,6 @@ function change_max_shots(game_opts::GameOptions squids::Vector{Squid})
             println("Sorry, that answer was not a valid answer... please try again!")
         end
     end
-end
-
-function change_options!(game_opts::GameOptions, squids::Vector{Squid})
-    """Change options for gameplay."""
-    change_opts = True
-    biggest_squid = maximum(s->s.length, squids)
-
-    num_rows!(game_opts, change_rows(game_opts, biggest_squid))
-    num_cols!(game_opts, change_cols(game_opts, biggest_squid))
-    max_allowed_shots!(game_opts, change_max_shots(game_opts, squids))
-    return nothing
 end
 
 function change_rows(g::GameOptions, biggest_squid::Int)
@@ -158,31 +130,31 @@ function change_rows(g::GameOptions, biggest_squid::Int)
     end
 end
 
+function change_options!(game_opts::GameOptions, squids::Vector{Squid})
+    """Change options for gameplay."""
+    biggest_squid = maximum(s->s.length, squids)
+
+    num_rows!(game_opts, change_rows(game_opts, biggest_squid))
+    num_cols!(game_opts, change_cols(game_opts, biggest_squid))
+    max_allowed_shots!(game_opts, change_max_shots(game_opts, squids))
+    return nothing
+end
+
 function place_squid_on_gameboard!(gameboard::GameBoard, squid::Squid)
     """Randomly place a squid on an unoccupied strip of the game board."""
     # Keep executing loop until squid is placed
     while true
-        # Randomly get starting coordinate
-        rand_row = rand(collect(1:num_rows(gameboard)), 1)
-        rand_col = rand(collect(1:num_cols(gameboard)), 1)
         # Placed left/right (true) or up/down (false)?
         horizontal = rand(Bool)
-
-        # Determine where to set the squid along the row/column
         if horizontal
-            # Are we close to the boundary?
-            if rand_row + offset_right(squid) > num_rows(gameboard)
-                squid_coords = squids_board(gameboard)[end-(length(squid)-1):end, rand_col]
-            elseif rand_row < offset_left(squid)
-                squid_coords = squids_board(gameboard)[1:length(squid), rand_col]
-
-            end
+            # Randomly get starting coordinate
+            window = num_rows(gameboard) - (length(squid) - 1)
+            rand_row = rand(collect(1:window, 1))
+            rand_col = rand(collect(1:num_cols(gameboard)), 1)
         else
-            if rand_col + offset_right(squid) > num_cols(gameboard)
-                squid_coords = squids_board(gameboard)[rand_row, end-(length(squid)-1):end]
-            elseif rand_col < offset_left(squid)
-                squid_coords = squids_board(gameboard)[rand_row, 1:length(squid)]
-            end
+            window = num_cols(gameboard) - (length(squid) - 1)
+            rand_col = rand(collect(1:window, 1))
+            rand_row = rand(collect(1:num_rows(gameboard)), 1)
         end
     end
 
