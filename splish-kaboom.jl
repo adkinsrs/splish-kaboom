@@ -14,7 +14,7 @@ using UnicodePlots
 # I don't want to extend beyond single digits and beyond the alphabet
 const ROW_LIMIT = 10  # 0-9
 const COL_LIMIT = 26  # A-Z
-const NUM_PROB_BOARDS = 12
+const STARTING_PROB_BOARDS = 12
 
 # Store sound effects to play on cue
 # I am not sure if this is working... my Mac OS version is too old to operate the libsndfile API
@@ -345,7 +345,7 @@ function play_game!(gameboard::GameBoard, opts::GameOptions, possible_boards)
                 , width=num_cols(gameboard)*2 - 1
                 , height=num_rows(gameboard)*2 - 1
                 , colormap=:inferno
-                , title="Chance to hit squid"
+                , title="Chance to hit squid (lighter is better)"
                 #, labels=false  #Cannot invert the axes so just hide them to avoid confusion
                 ))
         end
@@ -398,7 +398,7 @@ function play_game!(gameboard::GameBoard, opts::GameOptions, possible_boards)
             draw_squids_board(gameboard)
         end
         if prob_mode(opts)
-            possible_boards = update_valid_boards(possible_boards, shots_board(gameboard), hit)
+            possible_boards = update_valid_boards(possible_boards, shots_board(gameboard), hit, row_id, col_id)
         end
     end
     return nothing
@@ -412,15 +412,29 @@ function update_probability(possible_boards)
     # First get frequency of squids in each grid space then convert to a percent chance
     main_squid_board = squids_board(main_board)
     for col in 1:num_cols(main_board), row in 1:num_rows(main_board)
-        prob_board[row,col] = sum(x->squids_board(x)[row,col], possible_boards) * 100 / NUM_PROB_BOARDS
+        prob_board[row,col] = sum(x->squids_board(x)[row,col], possible_boards) * 100 / length(possible_boards)
     end
     # Since the heatmap has the origin in the lower-left, we need to flip the y-axis
     return reverse(prob_board, dims=1)
 end
 
-function update_valid_boards(possible_boards, shots_board, hit::Bool)
+function update_valid_boards(possible_boards, shots_board, hit::Bool, row::Int, col::Int)
     """Determine which squid combinations are still valid given the current shot board and outcome."""
-    return possible_boards  #TO BE EDITED
+    new_possible_boards = [popfirst!(possible_boards)]  # Main board is always first element of old board set
+    main_board = first(new_possible_boards)
+    if hit
+        # On a hit, all valid boards must have a squid at that position
+        for board in possible_boards
+            squids_board(board)[row, col] && push!(new_possible_boards, board)
+        end
+    else
+        # On a miss, all valid boards must not have a squid at that position
+        for board in possible_boards
+            squids_board(board)[row, col] || push!(new_possible_boards, board)
+        end
+    end
+
+    return new_possible_boards  #TO BE EDITED
 end
 
 ### Main
@@ -445,7 +459,7 @@ function main()
 
         possible_gameboards = [gameboard]
         if prob_mode(game_opts)
-            for idx in 1:NUM_PROB_BOARDS - 1    # actual gameboard is one board
+            for idx in 1:STARTING_PROB_BOARDS - 1    # actual gameboard is one board
                 fake_gameboard = GameBoard(game_opts)
                 for squid in squids
                     place_squid_on_gameboard!(fake_gameboard, squid)
