@@ -7,8 +7,8 @@ Zelda sound effects from http://noproblo.dayjo.org/ZeldaSounds/
 
 """
 
-using FileIO: loadstreaming
-import LibSndFile
+#using FileIO: loadstreaming
+#import LibSndFile
 
 # I don't want to extend beyond single digits and beyond the alphabet
 ROW_LIMIT = 10  # 0-9
@@ -16,8 +16,8 @@ COL_LIMIT = 26  # A-Z
 
 # Store sound effects to play on cue
 # I am not sure if this is working... my Mac OS version is too old to operate the libsndfile API
-sploosh = loadstreaming(joinpath(dirname(PROGRAM_FILE), "WW_Salvatore_Sploosh.wav"))
-kerboom = loadstreaming(joinpath(dirname(PROGRAM_FILE), "WW_Salvatore_Kerboom.wav"))
+#sploosh = loadstreaming(joinpath(dirname(PROGRAM_FILE), "WW_Salvatore_Sploosh.wav"))
+#kerboom = loadstreaming(joinpath(dirname(PROGRAM_FILE), "WW_Salvatore_Kerboom.wav"))
 
 ### Structs
 mutable struct GameBoard
@@ -49,6 +49,7 @@ num_cols(g::GameBoard) = size(shots_board(g))[2]
 
 function draw_game_board(g::GameBoard)
     """Draw updated game board."""
+    println()
     # Top line
     println(" |" * join('A':'A'+num_cols(g)-1, '|'))
     row_spacer = ["-" for i in 1:num_cols(g) *2 + 1]
@@ -69,10 +70,12 @@ function draw_game_board(g::GameBoard)
         end
         println(string(row) * '|' * join(row_to_print, '|'))
     end
+    println()
 end
 
 function draw_shots_board(g::GameBoard)
     """Draw board of only shots fired."""
+    println()
     # Top line
     println(" |" * join('A':'A'+num_cols(g)-1, '|'))
     row_spacer = ["-" for i in 1:num_cols(g) *2 + 1]
@@ -85,11 +88,13 @@ function draw_shots_board(g::GameBoard)
         end
         println(string(row) * '|' * join(row_to_print, '|'))
     end
+    println()
 end
 
 function draw_squids_board(g::GameBoard)
     """Draw board of only squid positions."""
     # TODO: Draw each squid as a different color to easily differentiate
+    println()
     # Top line
     println(" |" * join('A':'A'+num_cols(g)-1, '|'))
     row_spacer = ["-" for i in 1:num_cols(g) *2 + 1]
@@ -102,6 +107,7 @@ function draw_squids_board(g::GameBoard)
         end
         println(string(row) * '|' * join(row_to_print, '|'))
     end
+    println()
 end
 
 ### Squid functions
@@ -132,7 +138,22 @@ end
 
 ### Normal functions
 
-function change_cols(g::GameOptions, biggest_squid::Int)
+function all_squids_sunk(g::GameBoard)
+    """Determine if all the squids on the board have been sunk."""
+    all_sunk = true
+
+    # Julia stores arrays in column-major format, so looping through columns first is faster
+    for col in 1:num_cols(g), row in 1:num_rows(g)
+        # If squid part has not been hit, all squids have not been sunk.
+        if squids_board(g)[row, col] && !shots_board(g)[row, col]
+            all_sunk = false
+            break
+        end
+    end
+    return all_sunk
+end
+
+function change_cols(g::GameOptions, biggest_squid::Int)::UInt
     """Change the number of columns for the game board."""
     default_col_length = max(g.num_cols, biggest_squid)
     while true
@@ -155,7 +176,7 @@ function change_cols(g::GameOptions, biggest_squid::Int)
     end
 end
 
-function change_max_shots(game_opts::GameOptions, squids::Vector{Squid})
+function change_max_shots(g::GameOptions, squids::Vector{Squid})::UInt
     min_possible_shots = sum(s->length(s), squids)
     max_possible_shots = g.num_rows * g.num_cols - min_possible_shots
     default_max_shots = min(25, max_possible_shots)
@@ -179,7 +200,7 @@ function change_max_shots(game_opts::GameOptions, squids::Vector{Squid})
     end
 end
 
-function change_rows(g::GameOptions, biggest_squid::Int)
+function change_rows(g::GameOptions, biggest_squid::Int)::UInt
     """Change the number of rows for the game board."""
     default_row_length = max(num_rows(g), biggest_squid)
     while true
@@ -297,7 +318,8 @@ function play_game!(gameboard::GameBoard, opts::GameOptions)
     while !game_ends
         draw_game_board(gameboard)
         println("Pick a coordinate to fire on.  Example is 'A1' or 'B2'. Type 'exit' to exit game")
-        println("##### SHOTS REMAINING - $(opts-max_allowed_shots - shots_fired) #####")
+        println("##### SHOTS REMAINING - $(max_allowed_shots(opts) - shots_fired) #####")
+        print("Fire at - ")
         coordinate = readline()
         if lowercase(coordinate) == "exit"
             println("Abandoning mission!  You have doomed us all!")
@@ -317,17 +339,25 @@ function play_game!(gameboard::GameBoard, opts::GameOptions)
         end
         # Update board with hit or miss
         if squids_board(gameboard)[row_id, col_id]
-            read(kerboom)
+            #read(kerboom)
             println("HIT!  You are one step closer to annihilating all squids!")
         else
-            read(sploosh)
+            #read(sploosh)
             println("MISS!  Good job, good effort!")
         end
         shots_fired +=1
         shots_board(gameboard)[row_id, col_id] = true
         # Determine if all squids have been sunk
+        if all_squids_sunk(gameboard)
+            game_ends = true
+            draw_game_board(gameboard)
+            println("#####")
+            println("# FINAL BOARD")
+            println("# Hooray, you have sunk all the squids, and are a hero to the people.  Nice shooting there, Tex!")
+            println("# Total shots you used: $shots_fired")
+            println("######")
         # Determine if all shots have been fired
-        if shots_fired == opts.max_allowed_shots
+        elseif shots_fired == opts.max_allowed_shots
             game_ends = true
             println("You have used up all of your allowed shots, but did not destroy all the squids.  You lose!  Squid placement is show below.")
             draw_squids_board(gameboard)
@@ -358,6 +388,7 @@ function main()
         end
         play_game!(gameboard, game_opts)
 
+        println()
         println("Would you like to play again? (y/n) [default: n]")
         play_again = readline()
         if lowercase(play_again) in ["n", "no", ""]
@@ -370,8 +401,8 @@ end
 
 function clean_exit()
     """Before exiting, close opened streams."""
-    close(sploosh)
-    close(kerboom)
+    #close(sploosh)
+    #close(kerboom)
     exit()
 end
 
