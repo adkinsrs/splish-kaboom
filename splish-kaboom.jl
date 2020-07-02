@@ -340,10 +340,10 @@ function play_game!(gameboard::GameBoard, opts::GameOptions)
         # Update board with hit or miss
         if squids_board(gameboard)[row_id, col_id]
             #read(kerboom)
-            println("HIT!  You are one step closer to annihilating all squids!")
+            println("KER-BOOM!  You are one step closer to annihilating all squids!")
         else
             #read(sploosh)
-            println("MISS!  Good job, good effort!")
+            println("SPLOOSH!  Good job, good effort!")
         end
         shots_fired +=1
         shots_board(gameboard)[row_id, col_id] = true
