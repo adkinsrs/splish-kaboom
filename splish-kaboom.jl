@@ -346,7 +346,7 @@ function play_game!(gameboard::GameBoard, opts::GameOptions, possible_boards)
                 , height=num_rows(gameboard)*2 - 1
                 , colormap=:inferno
                 , title="Chance to hit squid (lighter is better)"
-                #, labels=false  #Cannot invert the axes so just hide them to avoid confusion
+                , labels=false  #Cannot invert the axes so just hide them to avoid confusion
                 ))
         end
         println("Pick a coordinate to fire on.  Example is 'A1' or 'B2'. Type 'exit' to exit game")
