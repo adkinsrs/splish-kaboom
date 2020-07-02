@@ -9,10 +9,12 @@ Zelda sound effects from http://noproblo.dayjo.org/ZeldaSounds/
 
 #using FileIO: loadstreaming
 #import LibSndFile
+using UnicodePlots
 
 # I don't want to extend beyond single digits and beyond the alphabet
-ROW_LIMIT = 10  # 0-9
-COL_LIMIT = 26  # A-Z
+const ROW_LIMIT = 10  # 0-9
+const COL_LIMIT = 26  # A-Z
+const NUM_PROB_BOARDS = 12
 
 # Store sound effects to play on cue
 # I am not sure if this is working... my Mac OS version is too old to operate the libsndfile API
@@ -34,8 +36,9 @@ mutable struct GameOptions
     num_cols::UInt
     # Maybe later - num_squids::UInt = 3
     max_allowed_shots::UInt
+    probability_mode::Bool
 
-    GameOptions() = new(8, 8, 24)
+    GameOptions() = new(8, 8, 24, false)
 end
 
 ### GameBoard functions
@@ -120,6 +123,7 @@ Base.length(s::Squid)::Int = s.len   #Convert to Int to play nice with other var
 num_rows(g::GameOptions) = g.num_rows
 num_cols(g::GameOptions) = g.num_cols
 max_allowed_shots(g::GameOptions) = g.max_allowed_shots
+prob_mode(g::GameOptions) = g.probability_mode
 
 function num_rows!(g::GameOptions, rows::UInt)
     g.num_rows = rows
@@ -133,6 +137,11 @@ end
 
 function max_allowed_shots!(g::GameOptions, max_shots::UInt)
     g.max_allowed_shots = max_shots
+    return nothing
+end
+
+function prob_mode!(g::GameOptions, on::Bool)
+    g.probability_mode = on
     return nothing
 end
 
@@ -200,6 +209,16 @@ function change_max_shots(g::GameOptions, squids::Vector{Squid})::UInt
     end
 end
 
+function change_prob_mode(g::GameOptions)
+    """Change if probability heatmap should be shown."""
+    println("Would you like to know probabilities of hitting a squid in an area?  This can make the game easier: [no]")
+    prob_mode = readline()
+    if lowercase(prob_mode) in ["y", "yes"]
+        return true
+    end
+    return false
+end
+
 function change_rows(g::GameOptions, biggest_squid::Int)::UInt
     """Change the number of rows for the game board."""
     default_row_length = max(num_rows(g), biggest_squid)
@@ -230,6 +249,7 @@ function change_options!(game_opts::GameOptions, squids::Vector{Squid})
     num_rows!(game_opts, change_rows(game_opts, biggest_squid))
     num_cols!(game_opts, change_cols(game_opts, biggest_squid))
     max_allowed_shots!(game_opts, change_max_shots(game_opts, squids))
+    prob_mode!(game_opts, change_prob_mode(game_opts))
     return nothing
 end
 
@@ -310,17 +330,30 @@ function parse_coordinate(coordinate::String)
     return (row_id, col_id)
 end
 
-function play_game!(gameboard::GameBoard, opts::GameOptions)
+function play_game!(gameboard::GameBoard, opts::GameOptions, possible_boards)
     """Play the game until an ending condition is reached."""
     println("Squids have been placed.  Now it is time to play!")
     shots_fired = 0
     game_ends = false
     while !game_ends
         draw_game_board(gameboard)
+        if prob_mode(opts)
+            prob_board = update_probability(possible_boards)
+            println(heatmap(prob_board
+                , xlim=[1,num_cols(gameboard)]
+                , ylim=[1, num_rows(gameboard)]
+                , width=num_cols(gameboard)*2 - 1
+                , height=num_rows(gameboard)*2 - 1
+                , colormap=:inferno
+                , title="Chance to hit squid"
+                #, labels=false  #Cannot invert the axes so just hide them to avoid confusion
+                ))
+        end
         println("Pick a coordinate to fire on.  Example is 'A1' or 'B2'. Type 'exit' to exit game")
         println("##### SHOTS REMAINING - $(max_allowed_shots(opts) - shots_fired) #####")
         print("Fire at - ")
         coordinate = readline()
+        println("----------------------------------------------")
         if lowercase(coordinate) == "exit"
             println("Abandoning mission!  You have doomed us all!")
             clean_exit()
@@ -338,9 +371,11 @@ function play_game!(gameboard::GameBoard, opts::GameOptions)
             continue
         end
         # Update board with hit or miss
+        hit=false
         if squids_board(gameboard)[row_id, col_id]
             #read(kerboom)
             println("KER-BOOM!  You are one step closer to annihilating all squids!")
+            hit=true
         else
             #read(sploosh)
             println("SPLOOSH!  Good job, good effort!")
@@ -362,9 +397,30 @@ function play_game!(gameboard::GameBoard, opts::GameOptions)
             println("You have used up all of your allowed shots, but did not destroy all the squids.  You lose!  Squid placement is show below.")
             draw_squids_board(gameboard)
         end
-
+        if prob_mode(opts)
+            possible_boards = update_valid_boards(possible_boards, shots_board(gameboard), hit)
+        end
     end
     return nothing
+end
+
+function update_probability(possible_boards)
+    """Calculate new probabilities based on remaining valid squid combinations."""
+    main_board = first(possible_boards)
+    prob_board = zeros(num_rows(main_board), num_cols(main_board))
+
+    # First get frequency of squids in each grid space then convert to a percent chance
+    main_squid_board = squids_board(main_board)
+    for col in 1:num_cols(main_board), row in 1:num_rows(main_board)
+        prob_board[row,col] = sum(x->squids_board(x)[row,col], possible_boards) * 100 / NUM_PROB_BOARDS
+    end
+    # Since the heatmap has the origin in the lower-left, we need to flip the y-axis
+    return reverse(prob_board, dims=1)
+end
+
+function update_valid_boards(possible_boards, shots_board, hit::Bool)
+    """Determine which squid combinations are still valid given the current shot board and outcome."""
+    return possible_boards  #TO BE EDITED
 end
 
 ### Main
@@ -373,7 +429,7 @@ function main()
     running = true
     while running
         println("Welcome to Splish, Kaboom!  The objective of this game is to destroy all of the dangerous squids lurking in the nearby open sea before they get you.")
-        println("First, would like to modify any of the game options?  The defaults are 8 rows, 8 columns, and 25 shots maximum: (y/n) [default: n] ")
+        println("First, would like to modify any of the game options?  The defaults are no probability heatmap, 8 rows, 8 columns, and 25 shots maximum: (y/n) [default: n] ")
         change_opts = readline()
         game_opts = GameOptions()
         squids = [Squid(3), Squid(4), Squid(5)] #TODO: Customize number of squids and lengths
@@ -386,7 +442,18 @@ function main()
         for squid in squids
             place_squid_on_gameboard!(gameboard, squid)
         end
-        play_game!(gameboard, game_opts)
+
+        possible_gameboards = [gameboard]
+        if prob_mode(game_opts)
+            for idx in 1:NUM_PROB_BOARDS - 1    # actual gameboard is one board
+                fake_gameboard = GameBoard(game_opts)
+                for squid in squids
+                    place_squid_on_gameboard!(fake_gameboard, squid)
+                end
+                push!(possible_gameboards, fake_gameboard)
+            end
+        end
+        play_game!(gameboard, game_opts, possible_gameboards)
 
         println()
         println("Would you like to play again? (y/n) [default: n]")
