@@ -14,7 +14,7 @@ using UnicodePlots
 # I don't want to extend beyond single digits and beyond the alphabet
 const ROW_LIMIT = 10  # 0-9
 const COL_LIMIT = 26  # A-Z
-const STARTING_PROB_BOARDS = 12
+const STARTING_PROB_BOARDS = 100
 
 # Store sound effects to play on cue
 # I am not sure if this is working... my Mac OS version is too old to operate the libsndfile API
@@ -188,7 +188,7 @@ end
 function change_max_shots(g::GameOptions, squids::Vector{Squid})::UInt
     min_possible_shots = sum(s->length(s), squids)
     max_possible_shots = g.num_rows * g.num_cols - min_possible_shots
-    default_max_shots = min(25, max_possible_shots)
+    default_max_shots = min(24, max_possible_shots)
     while true
         println("What is the maximum allowed number of shots you want to have? Fewer makes the game harder (range is $min_possible_shots - $max_possible_shots): [$default_max_shots]")
         num_shots = readline()
@@ -443,10 +443,10 @@ function main()
     running = true
     while running
         println("Welcome to Splish, Kaboom!  The objective of this game is to destroy all of the dangerous squids lurking in the nearby open sea before they get you.")
-        println("First, would like to modify any of the game options?  The defaults are no probability heatmap, 8 rows, 8 columns, and 25 shots maximum: (y/n) [default: n] ")
+        println("First, would like to modify any of the game options?  The defaults are no probability heatmap, 8 rows, 8 columns, and 24 shot limit: (y/n) [default: n] ")
         change_opts = readline()
         game_opts = GameOptions()
-        squids = [Squid(3), Squid(4), Squid(5)] #TODO: Customize number of squids and lengths
+        squids = [Squid(2), Squid(3), Squid(4)] #TODO: Customize number of squids and lengths
         if lowercase(change_opts) in ["y", "yes"]
             change_options!(game_opts, squids)
         end
