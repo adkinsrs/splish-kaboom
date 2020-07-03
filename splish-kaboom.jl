@@ -14,7 +14,7 @@ using UnicodePlots
 # I don't want to extend beyond single digits and beyond the alphabet
 const ROW_LIMIT = 10  # 0-9
 const COL_LIMIT = 26  # A-Z
-const STARTING_PROB_BOARDS = 100
+const STARTING_PROB_BOARDS = 10000
 
 # Store sound effects to play on cue
 # I am not sure if this is working... my Mac OS version is too old to operate the libsndfile API
@@ -29,6 +29,7 @@ end
 
 struct Squid
     len::UInt    # Number of coordinates the squid takes on the board
+    #TODO: Assign squid an ID and use that in squid board
 end
 
 mutable struct GameOptions
@@ -459,6 +460,7 @@ function main()
 
         possible_gameboards = [gameboard]
         if prob_mode(game_opts)
+            # Worth noting that some combinations of squids may have a chance of repeating if STARTING_PROB_BOARDS gets higher
             for idx in 1:STARTING_PROB_BOARDS - 1    # actual gameboard is one board
                 fake_gameboard = GameBoard(game_opts)
                 for squid in squids
